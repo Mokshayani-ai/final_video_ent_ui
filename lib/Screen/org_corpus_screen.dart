@@ -1,4 +1,3 @@
-// org_corpus.dart
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -16,11 +15,25 @@ class _OrgCorpusState extends State<OrgCorpus> {
   @override
   void initState() {
     super.initState();
+    _startLoadingTimer();
     _fetchFiles();
   }
 
+  Future<void> _startLoadingTimer() async {
+    await Future.delayed(Duration(seconds: 5));
+    if (isLoading) {
+      setState(() {
+        isLoading = false;
+        if (files.isEmpty) {
+          _loadDefaultFiles(); // Load default files after 5 seconds
+        }
+      });
+    }
+  }
+
   Future<void> _fetchFiles() async {
-    String apiUrl = 'http://10.103.119.157:5000/ask'; // Replace with your API URL
+    String apiUrl =
+        'http://10.103.119.157:5000/ask'; // Replace with your API URL
 
     try {
       var response = await http.get(Uri.parse(apiUrl));
@@ -35,20 +48,28 @@ class _OrgCorpusState extends State<OrgCorpus> {
         });
       } else {
         print('Failed to load files');
-        setState(() {
-          isLoading = false;
-        });
+        _loadDefaultFiles(); // Load default files if fetching fails
       }
     } catch (e) {
       print('Error fetching files: $e');
-      setState(() {
-        isLoading = false;
-      });
+      _loadDefaultFiles(); // Load default files in case of an error
     }
   }
 
+  void _loadDefaultFiles() {
+    setState(() {
+      files = [
+        FileInfo(name: 'HR_Policies_Doc.pdf', uploadDate: 1694870400.0),
+        FileInfo(name: 'PRD_1.pdf', uploadDate: 1694946000.0),
+        FileInfo(name: 'Events2024.pdf', uploadDate: 1695032400.0),
+        FileInfo(name: 'Handbook.pdf', uploadDate: 1695118800.0),
+      ];
+    });
+  }
+
   String _formatDate(double timestamp) {
-    DateTime date = DateTime.fromMillisecondsSinceEpoch(timestamp.toInt() * 1000);
+    DateTime date =
+        DateTime.fromMillisecondsSinceEpoch(timestamp.toInt() * 1000);
     return DateFormat('yyyy-MM-dd').format(date);
   }
 
@@ -93,8 +114,7 @@ class _OrgCorpusState extends State<OrgCorpus> {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 16.0, vertical: 12.0),
                           child: Row(
-                            mainAxisAlignment:
-                                MainAxisAlignment.spaceBetween,
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text(
                                 files[index].name,

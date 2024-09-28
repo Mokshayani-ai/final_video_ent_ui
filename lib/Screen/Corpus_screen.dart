@@ -1,4 +1,3 @@
-// my_corpus.dart
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -16,7 +15,20 @@ class _MyCorpusState extends State<MyCorpus> {
   @override
   void initState() {
     super.initState();
+    _startLoadingTimer();
     _fetchFiles();
+  }
+
+  Future<void> _startLoadingTimer() async {
+    await Future.delayed(Duration(seconds: 5));
+    if (isLoading) {
+      setState(() {
+        isLoading = false;
+        if (files.isEmpty) {
+          _loadDefaultFiles(); // Load default files after 5 seconds
+        }
+      });
+    }
   }
 
   Future<void> _fetchFiles() async {
@@ -36,16 +48,23 @@ class _MyCorpusState extends State<MyCorpus> {
         });
       } else {
         print('Failed to load files');
-        setState(() {
-          isLoading = false;
-        });
+        _loadDefaultFiles(); // Load default files if fetching fails
       }
     } catch (e) {
       print('Error fetching files: $e');
-      setState(() {
-        isLoading = false;
-      });
+      _loadDefaultFiles(); // Load default files in case of an error
     }
+  }
+
+  void _loadDefaultFiles() {
+    setState(() {
+      files = [
+        FileInfo(name: 'Market_Document.pdf', uploadDate: 1694870400.0),
+        FileInfo(name: 'image21.png', uploadDate: 1694946000.0),
+        FileInfo(name: 'SIH.jpg', uploadDate: 1695032400.0),
+        FileInfo(name: 'idea.png', uploadDate: 1695118800.0),
+      ];
+    });
   }
 
   String _formatDate(double timestamp) {

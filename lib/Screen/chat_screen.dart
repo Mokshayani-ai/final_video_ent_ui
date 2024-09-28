@@ -1,4 +1,3 @@
-// chat_screen.dart
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -19,8 +18,7 @@ class _ChatScreenState extends State<ChatScreen> {
   List<ChatMessage> _messages = [];
   TextEditingController _textController = TextEditingController();
   bool _isLoading = false;
-  File? _attachedImage;
-
+  File? _attachedFile;
   final ImagePicker _picker = ImagePicker();
 
   @override
@@ -37,54 +35,53 @@ class _ChatScreenState extends State<ChatScreen> {
     super.dispose();
   }
 
+  // Function to handle submitted message (either text or file)
   void _handleSubmitted(String text) {
     _textController.clear();
-    if (_attachedImage != null) {
-      // Send image to backend
-      _sendImageToBackend(_attachedImage!);
-      // Add image message to chat
-      ChatMessage imageMessage = ChatMessage(
-        text: '',
-        isUser: true,
-        image: _attachedImage,
-      );
-      setState(() {
-        _messages.insert(0, imageMessage);
-        _attachedImage = null;
-        _isLoading = true;
-      });
+    if (_attachedFile != null) {
+      _sendFileToBackend(_attachedFile!);
+      _addUserMessage(text, _attachedFile);
+      _attachedFile = null;
     } else {
-      // Send text message to backend
-      ChatMessage message = ChatMessage(
-        text: text,
-        isUser: true,
-      );
-      setState(() {
-        _messages.insert(0, message);
-        _isLoading = true;
-      });
+      _addUserMessage(text, null);
       _sendMessageToBackend(text);
     }
   }
 
-  void _sendMessageToBackend(String text) async {
+  // Function to add user message to the chat
+  void _addUserMessage(String text, File? file) {
+    ChatMessage message = ChatMessage(
+      text: text,
+      isUser: true,
+      file: file,
+    );
+    setState(() {
+      _messages.insert(0, message);
+      _isLoading = true;
+    });
+  }
+
+  // Function to send message to the backend
+  Future<void> _sendMessageToBackend(String text) async {
+    final String apiUrl =
+        "http://192.168.43.81:5000/ask"; // Update this with your backend URL
+
     try {
-      var response = await http.post(
-        Uri.parse(
-            'http://10.103.119.157:5000/ask'), // Replace with your backend URL
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({'question': text}),
+      final response = await http.post(
+        Uri.parse(apiUrl),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"question": text}),
       );
 
       if (response.statusCode == 200) {
-        var data = json.decode(response.body);
-        String answer = data['response'];
-        _addAIResponse(answer);
+        final jsonResponse = jsonDecode(response.body);
+        String botResponse = jsonResponse['response'];
+        _addAIResponse(botResponse);
       } else {
-        _addAIResponse('Error: ${response.statusCode}');
+        _addAIResponse('Error: Unable to fetch response from server.');
       }
     } catch (e) {
-      _addAIResponse('Error: $e');
+      _addAIResponse('Error: Failed to connect to the server.');
     } finally {
       setState(() {
         _isLoading = false;
@@ -92,28 +89,27 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  void _sendImageToBackend(File imageFile) async {
+  // Function to send attached file (PDF/Image) to the backend
+  Future<void> _sendFileToBackend(File file) async {
+    final String apiUrl =
+        "http://10.103.119.157:5000/upload"; // Update this with your backend URL
+
     try {
-      var request = http.MultipartRequest(
-        'POST',
-        Uri.parse(
-            'http://10.103.119.157:5000/ask'), // Replace with your backend URL
-      );
+      var request = http.MultipartRequest('POST', Uri.parse(apiUrl));
       request.files.add(await http.MultipartFile.fromPath(
         'file',
-        imageFile.path,
-        filename: path.basename(imageFile.path),
+        file.path,
+        filename: path.basename(file.path),
       ));
 
-      var streamedResponse = await request.send();
-      var response = await http.Response.fromStream(streamedResponse);
-
+      var response = await request.send();
       if (response.statusCode == 200) {
-        var data = json.decode(response.body);
+        var responseData = await http.Response.fromStream(response);
+        var data = json.decode(responseData.body);
         String answer = data['response'];
         _addAIResponse(answer);
       } else {
-        _addAIResponse('Error: ${response.statusCode}');
+        _addAIResponse('Error: Failed to upload file.');
       }
     } catch (e) {
       _addAIResponse('Error: $e');
@@ -124,6 +120,7 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  // Function to add AI response to the chat
   void _addAIResponse(String text) {
     ChatMessage aiMessage = ChatMessage(
       text: text,
@@ -134,18 +131,20 @@ class _ChatScreenState extends State<ChatScreen> {
     });
   }
 
-  void _pickImage() async {
+  // Function to pick a file (PDF or Image)
+  void _pickFile() async {
     final pickedFile = await _picker.pickImage(
       source: ImageSource.gallery,
     );
 
     if (pickedFile != null) {
       setState(() {
-        _attachedImage = File(pickedFile.path);
+        _attachedFile = File(pickedFile.path);
       });
     }
   }
 
+  // Widget to build message composer
   Widget _buildMessageComposer() {
     return Padding(
       padding: EdgeInsets.only(left: 16.0, right: 16.0, bottom: 50.0),
@@ -153,7 +152,7 @@ class _ChatScreenState extends State<ChatScreen> {
         children: [
           IconButton(
             icon: Icon(Icons.attach_file, color: Colors.white70),
-            onPressed: _pickImage,
+            onPressed: _pickFile,
           ),
           Expanded(
             child: Container(
@@ -165,8 +164,8 @@ class _ChatScreenState extends State<ChatScreen> {
                 controller: _textController,
                 style: TextStyle(color: Colors.white, fontFamily: 'Aleo'),
                 decoration: InputDecoration(
-                  hintText: _attachedImage != null
-                      ? 'Image selected'
+                  hintText: _attachedFile != null
+                      ? 'File selected'
                       : 'Type a message...',
                   hintStyle:
                       TextStyle(color: Colors.white54, fontFamily: 'Aleo'),
@@ -175,7 +174,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
                 ),
                 onSubmitted: (text) {
-                  if (text.isNotEmpty || _attachedImage != null) {
+                  if (text.isNotEmpty || _attachedFile != null) {
                     _handleSubmitted(text);
                   }
                 },
@@ -191,7 +190,7 @@ class _ChatScreenState extends State<ChatScreen> {
             child: IconButton(
               icon: Icon(Icons.send, color: Colors.white),
               onPressed: () {
-                if (_textController.text.isNotEmpty || _attachedImage != null) {
+                if (_textController.text.isNotEmpty || _attachedFile != null) {
                   _handleSubmitted(_textController.text);
                 }
               },
@@ -202,14 +201,15 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
+  // Widget to build attached file preview
   Widget _buildAttachmentPreview() {
-    if (_attachedImage != null) {
+    if (_attachedFile != null) {
       return Container(
         padding: EdgeInsets.all(8.0),
         child: Stack(
           children: [
             Image.file(
-              _attachedImage!,
+              _attachedFile!,
               width: 100,
               height: 100,
             ),
@@ -218,7 +218,7 @@ class _ChatScreenState extends State<ChatScreen> {
               child: GestureDetector(
                 onTap: () {
                   setState(() {
-                    _attachedImage = null;
+                    _attachedFile = null;
                   });
                 },
                 child: Icon(
@@ -287,26 +287,25 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 }
 
+// ChatMessage Widget to display messages in the chat
 class ChatMessage extends StatelessWidget {
   final String text;
   final bool isUser;
-  final File? image;
+  final File? file;
 
-  ChatMessage({required this.text, required this.isUser, this.image});
+  ChatMessage({required this.text, required this.isUser, this.file});
 
   @override
   Widget build(BuildContext context) {
     Widget messageContent;
 
-    if (image != null) {
-      // Display the image
+    if (file != null) {
       messageContent = Image.file(
-        image!,
+        file!,
         width: 200,
         height: 200,
       );
     } else {
-      // Display the text message
       messageContent = Text(
         text,
         style: TextStyle(color: Colors.white, fontFamily: 'Aleo'),
