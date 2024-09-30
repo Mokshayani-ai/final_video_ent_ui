@@ -103,7 +103,7 @@ class _LoginPageState extends State<LoginPage> {
                         style: ElevatedButton.styleFrom(
                             backgroundColor: isSignUp
                                 ? Color(0xFF33363E)
-                                : Colors.blueAccent,
+                                :  Color(0xFF353C53),
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(20),
                                 side:
@@ -126,7 +126,7 @@ class _LoginPageState extends State<LoginPage> {
                             )),
                         style: ElevatedButton.styleFrom(
                             backgroundColor: isSignUp
-                                ? Colors.blueAccent
+                                ? Color(0xFF353C53)
                                 : Color(0xFF33363E),
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(20),
